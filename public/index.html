@@ -1,0 +1,82 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Imágenes</title>
+</head>
+<body>
+    <h1>Buscar Imágenes</h1>
+    <input type="text" id="search" placeholder="Buscar...">
+    <button id="searchBtn">Buscar</button>
+    <div id="images"></div>
+    <p>Imágenes proporcionadas por <a href="https://pixabay.com" target="_blank">Pixabay</a>.</p>
+
+    <script>
+        document.getElementById('searchBtn').addEventListener('click', async () => {
+            const query = document.getElementById('search').value.trim();
+            if (!query) {
+                alert('Por favor, ingresa un término de búsqueda.');
+                return;
+            }
+            const encodedQuery = encodeURIComponent(query); // Codificar el término de búsqueda
+            try {
+                const response = await fetch(`/api/images?q=${encodedQuery}`);
+                if (!response.ok) {
+                    throw new Error('Error al buscar imágenes');
+                }
+                const data = await response.json();
+                const images = data.hits; // Acceder a la propiedad 'hits' de la respuesta
+                const imagesDiv = document.getElementById('images');
+                imagesDiv.innerHTML = '';
+                images.forEach(image => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = image.webformatURL;
+                    imgElement.alt = image.tags;
+                    imgElement.style.width = '200px';
+                    imgElement.style.cursor = 'pointer'; // Indicar que es clickeable
+                    imgElement.title = 'Haz clic para guardar esta imagen';
+                    imgElement.addEventListener('click', async () => {
+                        try {
+                            const apiUrl = window.location.origin + '/api/images';
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    id: image.id,
+                                    url: image.webformatURL,
+                                    pageURL: image.pageURL,
+                                    tags: image.tags.split(', '),
+                                    user: image.user,
+                                    userImageURL: image.userImageURL,
+                                    likes: image.likes,
+                                    views: image.views,
+                                    downloads: image.downloads,
+                                }),
+                            });
+                            if (response.ok) {
+                                alert('Imagen guardada exitosamente en la base de datos.');
+                            } else if (response.status === 409) {
+                                alert('La imagen ya existe en la base de datos.');
+                            } else {
+                                const errorData = await response.json();
+                                alert(`Error al guardar la imagen: ${errorData.error}`);
+                            }
+                        } catch (error) {
+                            console.error('Error al guardar la imagen:', error);
+                            alert('Hubo un problema al guardar la imagen.');
+                        }
+                    });
+                    imagesDiv.appendChild(imgElement);
+                });
+            } catch (error) {
+                console.error(error);
+                alert('Hubo un problema al buscar imágenes. Por favor, intenta nuevamente.');
+            }
+        });
+    </script>
+</body>
+</html>

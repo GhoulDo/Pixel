@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Imágenes Guardadas</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .image-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .image-card:hover img {
+            transform: scale(1.05);
+        }
+
+        .image-info {
+            padding: 20px;
+        }
+
+        .image-info h3 {
+            margin: 0 0 15px 0;
+            color: #1a1a1a;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .image-info h3::before {
+            content: '👤';
+            font-size: 1.2em;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: #e8f0fe;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: #1a73e8;
+            transition: all 0.2s ease;
+        }
+
+        .tag:hover {
+            background: #1a73e8;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 0.9em;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .stats span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.2s ease;
+        }
+
+        .stats span:hover {
+            transform: scale(1.1);
+            color: #1a73e8;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            border: none;
+            background: #1a73e8;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #1557b0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            position: relative;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .close-modal:hover {
+            transform: scale(1.1);
+        }
+     </style>
+ </head>
+ <body>
+     <h1>Galería de Imágenes Guardadas</h1>
+     <div class="gallery" id="gallery"></div>
+     <div class="pagination">
+         <button id="prevBtn" disabled>Anterior</button>
+         <button id="nextBtn">Siguiente</button>
+     </div>
+
+     <!-- Modal para vista ampliada -->
+     <div class="modal" id="imageModal">
+         <div class="modal-content">
+             <button class="close-modal" onclick="closeModal()">×</button>
+             <img id="modalImage" src="" alt="">
+         </div>
+     </div>
+
+     <script>
+         let currentPage = 1;
+         const imagesPerPage = 12;
+
+         async function loadImages(page) {
+             try {
+                 const response = await fetch(`http://localhost:5000/api/saved-images?page=${page}&per_page=${imagesPerPage}`);
+                 if (!response.ok) {
+                     throw new Error(`Error al cargar las imágenes: ${response.statusText}`);
+                 }
+                 const data = await response.json();
+                 displayImages(data.images);
+                 updatePagination(data.totalPages, page);
+             } catch (error) {
+                 console.error('Error:', error);
+                 alert('No se pudieron cargar las imágenes guardadas. Verifica la conexión con el servidor.');
+             }
+         }
+
+         function displayImages(images) {
+             const gallery = document.getElementById('gallery');
+             gallery.innerHTML = '';
+
+             images.forEach(image => {
+                 const card = document.createElement('div');
+                 card.className = 'image-card';
+
+                 // Convertir el Buffer de la imagen a una URL de datos
+                 const imageData = new Uint8Array(image.imageData.data);
+                 const blob = new Blob([imageData]);
+                 const imageUrl = URL.createObjectURL(blob);
+
+                 card.innerHTML = `
+                     <img src="${imageUrl}" alt="${image.tags.join(', ')}" onclick="openModal('${imageUrl}')">
+                     <div class="image-info">
+                         <h3>${image.user}</h3>
+                         <div class="tags">
+                             ${image.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                         </div>
+                         <div class="stats">
+                             <span title="Me gusta">👍 ${image.likes}</span>
+                             <span title="Vistas">👁️ ${image.views}</span>
+                             <span title="Descargas">⬇️ ${image.downloads}</span>
+                         </div>
+                     </div>
+                 `;
+
+                 gallery.appendChild(card);
+             });
+         }
+
+         function updatePagination(totalPages, currentPage) {
+             const prevBtn = document.getElementById('prevBtn');
+             const nextBtn = document.getElementById('nextBtn');
+
+             prevBtn.disabled = currentPage <= 1;
+             nextBtn.disabled = currentPage >= totalPages;
+         }
+
+         function openModal(imageUrl) {
+             const modal = document.getElementById('imageModal');
+             const modalImg = document.getElementById('modalImage');
+             modalImg.src = imageUrl;
+             modal.classList.add('active');
+             document.body.style.overflow = 'hidden';
+         }
+
+         function closeModal() {
+             const modal = document.getElementById('imageModal');
+             modal.classList.remove('active');
+             document.body.style.overflow = 'auto';
+         }
+
+         // Cerrar modal al hacer clic fuera de la imagen
+         document.getElementById('imageModal').addEventListener('click', function(e) {
+             if (e.target === this) {
+                 closeModal();
+             }
+         });
+
+         document.getElementById('prevBtn').addEventListener('click', () => {
+             if (currentPage > 1) {
+                 currentPage--;
+                 loadImages(currentPage);
+             }
+         });
+
+         document.getElementById('nextBtn').addEventListener('click', () => {
+             currentPage++;
+             loadImages(currentPage);
+         });
+
+         // Cargar imágenes iniciales
+         loadImages(currentPage);
+     </script>
+ </body>
+ </html>
