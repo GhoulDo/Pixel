@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Imágenes Guardadas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .image-info {
+            padding: 15px;
+        }
+
+        .image-info h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            background: #e0e0e0;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 15px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Galería de Imágenes Guardadas</h1>
+    <div class="gallery" id="gallery"></div>
+    <div class="pagination">
+        <button id="prevBtn" disabled>Anterior</button>
+        <button id="nextBtn">Siguiente</button>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const imagesPerPage = 12;
+
+        async function loadImages(page) {
+            try {
+                const response = await fetch(`http://localhost:5000/api/saved-images?page=${page}&per_page=${imagesPerPage}`);
+                if (!response.ok) {
+                    throw new Error('Error al cargar las imágenes');
+                }
+                const data = await response.json();
+                displayImages(data.images);
+                updatePagination(data.totalPages, page);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cargar las imágenes');
+            }
+        }
+
+        function displayImages(images) {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+
+            images.forEach(image => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+
+                // Convertir el Buffer de la imagen a una URL de datos
+                const imageData = new Uint8Array(image.imageData.data);
+                const blob = new Blob([imageData]);
+                const imageUrl = URL.createObjectURL(blob);
+
+                card.innerHTML = `
+                    <img src="${imageUrl}" alt="${image.tags.join(', ')}">
+                    <div class="image-info">
+                        <h3>Por: ${image.user}</h3>
+                        <div class="tags">
+                            ${image.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                        <div class="stats">
+                            <span>👍 ${image.likes}</span>
+                            <span>👁️ ${image.views}</span>
+                            <span>⬇️ ${image.downloads}</span>
+                        </div>
+                    </div>
+                `;
+
+                gallery.appendChild(card);
+            });
+        }
+
+        function updatePagination(totalPages, currentPage) {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadImages(currentPage);
+            }
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentPage++;
+            loadImages(currentPage);
+        });
+
+        // Cargar imágenes iniciales
+        loadImages(currentPage);
+    </script>
+</body>
+</html>
